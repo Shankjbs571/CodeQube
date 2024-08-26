@@ -1,7 +1,10 @@
 const simpleGit = require('simple-git');
-const sonarqubeScanner = require('sonarqube-scanner').default; // Correct import
+const sonarqubeScanner = require('sonarqube-scanner').default;
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
+
+
 
 const clonerepo = async (req, res) => {
     const { repoLink } = req.body;
@@ -25,24 +28,33 @@ const clonerepo = async (req, res) => {
             console.log(`Cloned ${repoName}`);
         }
 
+        
         sonarqubeScanner(
             {
-                serverUrl: 'http://localhost:9000',  
-                token: 'fjdfkjdfdkjfd',       
+                serverUrl: process.env.SONARQUBE_SERVER_URL,
+                token: process.env.SONARQUBE_SERVER_TOKEN,
                 options: {
                     'sonar.projectKey': repoName,
                     'sonar.sources': localPath,
                     'sonar.sourceEncoding': 'UTF-8',
                 },
             },
-            () => {
-                console.log('SonarQube analysis completed.');
-                res.status(200).json({ message: 'SonarQube analysis completed.' });
-            }
+            async (error, results) => {
+                if (error) {
+                    console.error('SonarQube analysis failed:', error);
+                    return res.status(500).json({ error: 'SonarQube analysis failed.' });
+                } else {
+                    console.log('SonarQube analysis completed.');
+                    return res.status(200).json({ message: 'SonarQube analysis completed.'});
+                    
+                    }
+                }
+            
         );
+        
     } catch (error) {
         console.error(error);
-        res.status(500).json({ error: 'Failed to clone/pull and analyze the repository.' });
+        return res.status(500).json({ error: 'Failed to clone/pull and analyze the repository.' });
     }
 }
 

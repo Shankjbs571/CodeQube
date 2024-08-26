@@ -1,0 +1,6 @@
+projectKey=SponsorIn
+serverUrl=http://localhost:9000
+serverVersion=10.6.0.92116
+dashboardUrl=http://localhost:9000/dashboard?id=SponsorIn
+ceTaskId=b154a3e9-41d1-404d-99cf-72dfe675338a
+ceTaskUrl=http://localhost:9000/api/ce/task?id=b154a3e9-41d1-404d-99cf-72dfe675338a

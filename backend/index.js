@@ -2,10 +2,12 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const repo = require("./routes/repoRoutes");
+const getreport = require("./routes/soanrqubeRoutes");
 
 const allRouter = express.Router();
 
 allRouter.use('/repo', repo);
+allRouter.use('/report', getreport);
 
 const app = express();
 const port = process.env.PORT || 5000;

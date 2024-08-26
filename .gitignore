@@ -1,2 +1,7 @@
 backend/node_modules
 backend/.env
+codeqube/.env
+
+codeqube/codeqube.webm
+backend/controllers/repos
+backend/.sonar

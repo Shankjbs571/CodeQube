@@ -1,16 +1,56 @@
 import { React, useState, useEffect } from "react";
 import axiosInstance from "../axiosConfig";
+import Spinner from "../components/Spinner";
+import Alert from "../components/Alert";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFile, faBug, faShieldAlt, faCode, faChartBar, faListOl, faFileCode, faTachometerAlt, faDollarSign, faCog, faFileAlt, faLanguage, faTag } from '@fortawesome/free-solid-svg-icons';
+
 
 const Analyze = () => {
     const [repoLink, setRepoLink] = useState('');
     const [isValid, setIsValid] = useState(true);
+    const [searchingRepo, setSearchingRepo] = useState(false);
+    const [analysisDone, setAnalysisDone] = useState(false);
+    const [analysisError, setAnalysisError] = useState(false);
+    const [fetchReport, setFetchReport] = useState("dontfetch");
+    const [reportData, setReportData] = useState({
+        component: {
+            key: '',
+            name: '',
+            qualifier: '',
+            measures: [
+                { metric: 'duplicated_lines_density', value: 'N/A', bestValue: false },
+                { metric: 'vulnerabilities', value: 'N/A', bestValue: false },
+                { metric: 'code_smells', value: 'N/A', bestValue: false },
+                { metric: 'bugs', value: 'N/A', bestValue: false },
+                { metric: 'coverage', value: 'N/A', bestValue: false },
+            ],
+        },
+    });
 
-    
+    const getreport = async () => {
+        try {
+            const repoName = repoLink.split('/').pop();
+            const response = await axiosInstance.post('/report/getreport', { componentKey: repoName });
+            console.log("Response data:", response.data);
+            return response.data?.report;
+        } catch (error) {
+            console.log("Error:", error);
+            return null; // Return null in case of an error
+        }
+    };
 
     useEffect(() => {
-        console.log("repolink is: ",repoLink);
-
-    }, [repoLink])
+        const fetchReportData = async () => {
+            if (repoLink) {
+                const report = await getreport();
+                if (report) {
+                    setReportData(report);
+                }
+            }
+        };
+        fetchReportData();
+    }, [fetchReport]);
 
     const validateGitHubLink = (url) => {
         const gitHubRepoRegex = /^(https?:\/\/)?(www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/?$/;
@@ -22,46 +62,133 @@ const Analyze = () => {
         setRepoLink(inputValue);
 
         // Validate the input
-        if (validateGitHubLink(inputValue)) {
-            setIsValid(true);
-        } else {
-            setIsValid(false);
-        }
+        setIsValid(validateGitHubLink(inputValue));
     };
 
     const handleAnalyze = async () => {
-
-        try{
-            const res = await axiosInstance.post('/repo/clonerepo',{ repoLink: repoLink });
+        setSearchingRepo(true);
+        setAnalysisDone(false);
+        try {
+            const repoName = repoLink.split('/').pop();
+            const res = await axiosInstance.post('/repo/clonerepo', { repoLink: repoLink });
             console.log(res);
-        } catch{
-            console.log("error")
+            setSearchingRepo(false);
+            setAnalysisDone(true);
+            setFetchReport("fetchit")
+        } catch (error) {
+            console.log("Error:", error);
+            setSearchingRepo(false);
+            setAnalysisDone(false);
+            setAnalysisError(true);
         }
-        
-    }
+    };
 
+    const formatMetric = (metric) => {
+        switch (metric) {
+            case 'coverage':
+                return 'Code Coverage';
+            case 'bugs':
+                return 'Bugs';
+            case 'vulnerabilities':
+                return 'Security Vulnerabilities';
+            case 'code_smells':
+                return 'Code Smells';
+            case 'duplicated_lines_density':
+                return 'Duplicated Lines Density';
+            case 'lines':
+                return 'Total Lines of Code';
+            case 'file_complexity':
+                return 'File Complexity';
+            case 'security_rating':
+                return 'Security Rating';
+            case 'reliability_rating':
+                return 'Reliability Rating';
+            case 'major_violations':
+                return 'Major Violations';
+            case 'ncloc_language_distribution':
+                return 'Lines of Code by Language';
+            case 'complexity':
+                return 'Code Complexity';
+            case 'development_cost':
+                return 'Development Cost';
+            case 'files':
+                return 'Total Files';
+            case 'ncloc':
+                return 'Lines of Code';
+            default:
+                return metric.replace(/_/g, ' ').toUpperCase();
+        }
+    };
 
+    const getIconForMetric = (metric) => {
+        switch (metric) {
+            case 'coverage':
+                return faChartBar;
+            case 'bugs':
+                return faBug;
+            case 'vulnerabilities':
+                return faShieldAlt;
+            case 'code_smells':
+                return faCode;
+            case 'duplicated_lines_density':
+                return faListOl;
+            case 'lines':
+                return faFileCode;
+            case 'file_complexity':
+                return faCog;
+            case 'security_rating':
+                return faShieldAlt;
+            case 'reliability_rating':
+                return faTachometerAlt;
+            case 'major_violations':
+                return faTag;
+            case 'ncloc_language_distribution':
+                return faLanguage;
+            case 'complexity':
+                return faChartBar;
+            case 'development_cost':
+                return faDollarSign;
+            case 'files':
+                return faFileAlt;
+            case 'ncloc':
+                return faFile;
+            default:
+                return null;
+        }
+    };
 
-
+    const MetricCard = ({ metricData }) => (
+        <div key={metricData.metric} className="p-4 border rounded-lg flex items-center space-x-3">
+            {getIconForMetric(metricData.metric) && (
+                <FontAwesomeIcon icon={getIconForMetric(metricData.metric)} className="text-gray-500" />
+            )}
+            <div>
+                <h3 className="text-lg font-medium">{formatMetric(metricData.metric)}</h3>
+                <p className="text-sm">Value: {metricData.value}</p>
+                <p className="text-sm">Best Value: {metricData.bestValue ? 'Yes' : 'No'}</p>
+            </div>
+        </div>
+    );
+    
+    
 
     return (
         <div className="bg-black flex flex-col h-screen justify-between">
             <div
-            className="fixed inset-x-0 -top-40 z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
-            aria-hidden="true"
+                className="fixed inset-x-0 -top-40 z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
+                aria-hidden="true"
             >
                 <div
                     className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-[#61c87e] to-[#7069d2] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]"
                     style={{
-                    clipPath:
-                        'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
+                        clipPath:
+                            'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)',
                     }}
                 />
             </div>
-        <div className=" mt-32 pb-14 flex z-40 flex-col justify-center items-center sm:pt-16  lg:pt-24 lg:pb-24">
+            <div className="mt-20 pb-14 flex z-40 flex-col justify-center items-center sm:pt-16 lg:pt-24 lg:pb-24">
                 <div className="container border border-slate-200 rounded-full bg-black p-2 flex justify-between items-center fixed top-20 max-w-screen-xl text-gray-600">
                     <div className='w-full'>
-                        {/* <input type="search" name="serch" placeholder="Github Repository link...." onChange={(e) => setRepoLink(e.target.value)} className="bg-white w-full h-10 px-5 pr-10 rounded-full text-sm focus:outline-none" /></div> */}
                         <input
                             type="search"
                             name="search"
@@ -71,47 +198,97 @@ const Analyze = () => {
                             className={`bg-white w-full h-10 px-5 pr-10 rounded-full text-sm focus:outline-none ${isValid ? '' : 'border-red-500'}`}
                         />
                     </div>
-                   
-                    {repoLink != '' && 
-                    (!isValid ? 
-                        ( <div className=" bg-red-400 w-fit  rounded-full px-4 py-2 text-white my-auto h-fit m-2">
-                            Invalid
+                    {repoLink !== '' && (
+                        !isValid ? (
+                            <div className="bg-red-400 w-fit rounded-full px-4 py-2 text-white my-auto h-fit m-2">
+                                Invalid
                             </div>
-                        ) 
-                        :
-                        ( <div 
-                            className=" bg-blue-700 w-fit hover:bg-blue-600 hover:scale-[1.02] rounded-full px-4 py-2 text-white my-auto h-fit  m-2"
-                            onClick={handleAnalyze}
+                        ) : (
+                            <div
+                                className="bg-blue-700 w-fit hover:bg-blue-600 hover:scale-[1.02] rounded-full px-4 py-2 text-white my-auto h-fit m-2"
+                                onClick={handleAnalyze}
                             >
-                            Analyze
+                                Analyze
                             </div>
                         )
-                    )    
-                    }
-
+                    )}
                 </div>
 
-        
+                <div className="container flex gap-2 rounded-lg overflow-hidden max-w-screen-xl">
+                    <div className="bg-white flex flex-col p-4 text-black items-center w-[20%] min-h-[70vh]">
+                        {searchingRepo && (
+                            <div className="flex flex-col justify-center mb-4">
+                                <div className="flex justify-center space-x-2 animate-pulse">
+                                    <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                                    <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                                    <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                                </div>
+                                <div className="flex mt-2 flex-col justify-center items-center space-x-2 animate-pulse" >
+                                    <div className="flex flex-col justify-center items-center bg-amber-100 rounded-lg p-4 mb-4 text-sm text-zinc-400" role="alert">
+                                        {/* <svg className="w-5 h-5 inline mr-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg> */}
+                                        
+                                        {/* <div className="font-medium">......Processing.....</div> */}
+                                        <div> Sit back! We are scanning your GitHub repo, It may take about 28 mins depending on your Repo Size </div>
 
-        </div>
-        
-        <footer className="bg-black">
-        <div className="mx-auto max-w-7xl overflow-hidden py-12 px-4 sm:px-6 lg:px-8">
-            <nav className="-mx-5 -my-2 flex flex-wrap justify-center" aria-label="Footer">
-            {/* <div className="px-5 py-2"><a href="#" className="text-base text-gray-500 hover:text-gray-900">About</a></div>
-            <div className="px-5 py-2"><a href="#" className="text-base text-gray-500 hover:text-gray-900">Press</a></div>
-            <div className="px-5 py-2"><a href="#" className="text-base text-gray-500 hover:text-gray-900">Privacy</a></div> */}
-            </nav>
-            <div className="mt-8 flex justify-center space-x-6">
-            <a href="#" className="text-gray-400 hover:text-gray-500"
-                ><span className="sr-only">Twitter</span><svg fill="currentColor" viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true"><path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84"></path></svg></a
-            ><a href="#" className="text-gray-400 hover:text-gray-500"
-                ><span className="sr-only">GitHub</span><svg fill="currentColor" viewBox="0 0 24 24" className="h-6 w-6" aria-hidden="true"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg
-            ></a>
+                                        
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        )}
+                        {analysisDone && <Alert title={"Success! "} message={"Analysis complete, we are loading the results"} />}
+                        {analysisError && (
+                            <div className="flex bg-red-100 rounded-lg p-4 mb-4 text-sm text-red-700" role="alert">
+                                <svg className="w-5 h-5 inline mr-3" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd"></path></svg>
+                                <div>
+                                    <span className="font-medium">Something went wrong!</span> Server may be down.
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    <div className="bg-white text-black flex-1">
+                        <div className="p-4 space-y-4">
+                            <div className="shadow-md rounded-lg p-4">
+                                <h2 className="text-xl font-semibold mb-4">{reportData.component?.key || 'Repository Name'}</h2>
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                    {reportData.component?.measures.map((measure, index) => (
+                                        <MetricCard key={index} metricData={measure} />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <p className="mt-8 text-center text-base text-gray-400">© 2024 CodeQube. All rights reserved.</p>
-        </div>
-        </footer>
+            <div
+                className="absolute inset-x-0 bottom-0 -z-10 transform-gpu overflow-hidden blur-3xl"
+                aria-hidden="true"
+            >
+                <svg
+                    className="relative -z-10 max-w-none -translate-x-1/2 rotate-[30deg] -translate-y-8"
+                    viewBox="0 0 1155 678"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                >
+                    <path
+                        fill="url(#c63bc0b5-5939-4d1d-b91a-2efba71e5d8f)"
+                        fillOpacity=".3"
+                        d="M317.5 196L307.8 204.2C297.4 212.4 274.1 220.6 246.6 224.5C219.1 228.4 188.8 227.9 160.2 214.7C131.7 201.5 105.4 175.1 89.8 143.8C74.3 112.4 69.1 76.9 79.3 44.4C89.4 11.9 114.8 -16.7 144.6 -33.8C174.5 -51 208.6 -53.1 237.2 -40.1C265.7 -27.2 289.1 -1.5 307.5 27.6C325.8 56.8 327.4 90.7 317.5 196Z"
+                    />
+                    <defs>
+                        <linearGradient
+                            id="c63bc0b5-5939-4d1d-b91a-2efba71e5d8f"
+                            x1="0%"
+                            x2="100%"
+                            y1="0%"
+                            y2="100%"
+                        >
+                            <stop offset="0%" stopColor="rgba(249, 115, 22, 0.3)" />
+                            <stop offset="100%" stopColor="rgba(249, 115, 22, 0.3)" />
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
         </div>
     );
 };
